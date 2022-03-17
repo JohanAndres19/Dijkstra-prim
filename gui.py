@@ -92,11 +92,12 @@ class Lienzo(QFrame):
                 painter.drawLine(aux[0].posx+3, aux[0].posy+5, aux[1].posx+3,aux[1].posy+5)
             painter.end()        
         
-    def DibujarAyacente(self,nodos):
+    def DibujarAyacente(self,nodos,arista):
         self.nodos=nodos
+        self.aristas=arista
         self.dibujar_lineas=True
         self.update()
-
+        
     def Limpiar(self):
         self.image.fill(Qt.white)
         self.presionado=False
@@ -134,76 +135,55 @@ class GraficaArbol(QMainWindow):
         self.ui.setupUi(self)
         self.modelo=modelo
         self.controlador=ControladorA(self)
-        self.canvas2 = MplCanvas(self.ui.frame_2)
-        self.canvas2.setGeometry(0, 0, self.ui.frame_2.width(),self.ui.frame_2.height())
+        self.canvas = CanvasGrafo(self.ui.frame_2)
+        self.canvas.setStyleSheet("background: white;\n  border: 3px solid; \n border-radius:15px")
+        
         
     def Get_modelo(self):
         return self.modelo
 
-class MplCanvas(FigureCanvas):
+class CanvasGrafo(QFrame):
+    def __init__(self,parent):
+        super().__init__(parent=parent)      
+        self.resize(parent.width(),parent.height())
+        self.image = QImage(self.size(), QImage.Format_RGB32)
+        self.image.fill(Qt.white)
+        self.dibujarD=False
     
-    def __init__(self, parent=None):
-        self.figure = plt.figure()
-        FigureCanvas.__init__(self,self.figure)
-        FigureCanvas.updateGeometry(self)
-        self.setParent(parent)
-        """
-        self.axes = fig.add_subplot(111)
-        FigureCanvas .__init__(self, fig) # Inicializa la clase padre
-        """
-        """
-        self.setParent(parent)
- 
-        FigureCanvas.setSizePolicy(self,
-                                   QSizePolicy.Expanding,
-                                   QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-        """
-
-    def dibujar(self,gr,pos):
-        self.figure.clf()
-        nx.draw(gr, pos, with_labels=True, arrows=True)
-        self.draw_idle()
-
-class PlotCanvas(
-    FigureCanvas): # Al heredar la clase FigureCanvas, esta clase es un QQidget PyQt5 y un FigureCanvas matplotlib. Esta es la clave para conectar pyqt5 con matplotlib.
- 
-    def __init__(self, parent=None, width=500, height=500, dpi=100):
-        self.fig = plt.figure() # Crear una figura, nota: la figura es una figura debajo de matplotlib, no una figura debajo de matplotlib.pyplot
-         # Llame al método add_subplot en la figura, similar al método subplot en matplotlib.pyplot
- 
-        FigureCanvas .__init__(self, self.fig) # Inicializa la clase padre
-        self.setParent(parent)
-        """
-        FigureCanvas.setSizePolicy(self,
-                                   QSizePolicy.Expanding,
-                                   QSizePolicy.Expanding)
-        """
-        FigureCanvas.updateGeometry(self)
+    def paintEvent(self, event):
+        painter = QPainter()
+        painter.drawImage(self.rect(),self.image, self.image.rect())
+        if self.dibujarD:
+            painter.begin(self)
+            painter.setBrush(QBrush(Qt.blue, Qt.SolidPattern))
+            pincel =QPen(Qt.blue,8)
+            pincel2=QPen(Qt.white)
+            painter.setPen(pincel)
+            for i in self.nodo:
+                painter.drawEllipse(i.posx,i.posy, 20, 20)
+            painter.setPen(pincel2)            
+            for i in self.nodo:
+                painter.drawText(i.posx+4,i.posy+3,10,12,Qt.AlignHCenter,str(i.valor))
+            pincel3=QPen(Qt.blue,2)
+            painter.setPen(pincel3)
+            for i in self.camino:
+                painter.drawLine(self.nodo[i[0]-1].posx+3, self.nodo[i[0]-1].posy+5, self.nodo[i[1]-1].posx+3,self.nodo[i[1]-1].posy+5)
+            pincel4 =QPen(Qt.black,5)
+            painter.setPen(pincel4)
+            for i in self.camino:
+                x=int((self.nodo[i[0]-1].posx+self.nodo[i[1]-1].posx)//2)
+                y=int((self.nodo[i[0]-1].posy+self.nodo[i[1]-1].posy)//2)
+                painter.drawText(x+6,y+8,10,12,Qt.AlignHCenter,str(i[2]))
+            painter.setPen(pincel4)            
+            painter.end()            
     
-    def dibujar(self,gr,pos):
-        self.fig.clf()
-        nx.draw(gr, pos, with_labels=True, arrows=True)
-        self.draw_idle()
+    def DibujarDi(self,camino,nodos):
+        self.dibujarD=True
+        self.nodo=nodos
+        self.camino=camino
+        self.update()
 
-class Grafica:
-    def __init__(self):
-        self.G = nx.DiGraph()
-
-    def Graficar(self,nodo):
-        self.Grafica_arbol(nodo)        
-        self.pos =graphviz_layout(self.G, prog='dot')
-        return self.pos
-
-            
-    def Grafica_arbol(self,nodo):                
-        if not self.G.has_node(nodo.valor):
-            self.G.add_node(nodo.valor) 
-        for i in nodo.Get__Partes():
-            if not self.G.has_node(i.valor):
-                self.G.add_node(i.valor)
-                self.G.add_edge(nodo.valor,i.valor)
-                self.Grafica_arbol(i)
+    
 #--------------------------------------
 #------------controlador---------------
 
@@ -250,45 +230,61 @@ class Modelo ():
 
     def Dibujar(self):
         if self.grafo != None:
-            items=[" "]
-            for i in self.grafo.nodos:
-                 items.append("nodo "+str(i.valor))
-            self.VentanaG.ui.comboBox.addItems(items)
-            self.VentanaG.ui.comboBox_2.addItems([" ","RECORRIDO EN ANCHURA","RECORRIDO EN PROFUNDIDAD"])
+            self.VentanaG.ui.comboBox.clear()
+            self.VentanaG.ui.comboBox.addItems([" ","DIJKSTRA","PRIM"])
             self.VentanaG.show()
 
     def DibujarArbol(self):
-        if self.VentanaG.ui.comboBox.currentIndex()!=0:
-            g1=Grafica()
-            if self.VentanaG.ui.comboBox_2.currentIndex()==1 :
-                print("esta entrando")          
-                pos1=g1.Graficar(self.grafo.RecorridoA(self.nodos[self.VentanaG.ui.comboBox.currentIndex()-1]))
-                self.VentanaG.canvas2.dibujar(g1.G, pos1)
-            elif self.VentanaG.ui.comboBox_2.currentIndex()==2: 
-                pos1=g1.Graficar(self.grafo.RecorridoP(self.nodos[self.VentanaG.ui.comboBox.currentIndex()-1],[]))
-                self.VentanaG.canvas2.dibujar(g1.G, pos1)
+        if self.VentanaG.ui.comboBox.currentIndex()==1 :
+            visitados=[]
+            recorrido=[]
+            aux=0
+            ca_d=self.grafo.AlgDijkstra()
+            visitados.append(((ca_d[0])[0])[0])
+            ca_d.pop(0)
+            print(ca_d)
+            for i in ca_d:
+                for j in i[0]:
+                    if j in visitados:
+                        aux=j       
+                    else:
+                        visitados.append(j)
+                        recorrido.append((aux,j,i[1]))    
+            print(recorrido)
+            self.VentanaG.canvas.DibujarDi(recorrido,self.nodos)
+        elif self.VentanaG.ui.comboBox.currentIndex()==2: 
+            self.VentanaG.canvas.DibujarDi(self.grafo.AlgPrim(self.nodos[0].valor, [], [], []), self.nodos)
             
     
     def Lista(self):
         if len(self.ventana.Get_Lienzo().posicion)>0:
             self.ventana.Get_Lienzo().Set_NoDibujar(True)
-            self.dialogo.ui.tableWidget.setColumnCount(len(self.ventana.Get_Lienzo().posicion))
+            if self.dialogo.ui.tableWidget.rowCount()!=0:
+                self.dialogo.ui.tableWidget.clearContents()
+                self.dialogo.ui.tableWidget.setRowCount(0)
+            self.dialogo.ui.tableWidget.setColumnCount(len(self.ventana.Get_Lienzo().posicion)+1)
             self.dialogo.show()
             label_en_y=["nodos"]
             for i in range(len(self.ventana.Get_Lienzo().posicion)):
                 label_en_y.append(("nodo "+ str(i+1)))
-            print(label_en_y)
             self.dialogo.ui.tableWidget.setHorizontalHeaderLabels(label_en_y)
-            if self.dialogo.ui.tableWidget.rowCount()!=0:
-                self.dialogo.ui.tableWidget.clearContents()
-                self.dialogo.ui.tableWidget.setRowCount(0)
+            self.dialogo.ui.tableWidget.setColumnWidth(0,50)
             for i in range(len(self.ventana.Get_Lienzo().posicion)):
                 self.dialogo.ui.tableWidget.insertRow(i)
                 celda= QTableWidgetItem(str(i+1))
+                celda.setTextAlignment(Qt.AlignHCenter)
                 self.dialogo.ui.tableWidget.setItem(i, 0, celda)
-                aux=QLineEdit()
-                self.dialogo.ui.tableWidget.setColumnWidth(1,30)
-                self.dialogo.ui.tableWidget.setCellWidget(i,1,aux)
+            for i in range(len(self.ventana.Get_Lienzo().posicion)):
+                self.dialogo.ui.tableWidget.setColumnWidth(i+1,60)
+                for j in range(len(self.ventana.Get_Lienzo().posicion)):
+                    aux=QLineEdit()
+                    aux.setAlignment((Qt.AlignHCenter))
+                    if (i-j)>=0:
+                        aux.setText("X")
+                        aux.setEnabled(False)
+                    else:
+                        aux.setValidator(QtGui.QIntValidator())
+                    self.dialogo.ui.tableWidget.setCellWidget(i,j+1,aux)
         else:
             QMessageBox.warning(self.dialogo, " ADVERTENCIA ", " POR FAVOR UBIQUE LOS NODOS PRIMERO ")
 
@@ -296,23 +292,28 @@ class Modelo ():
         matriz=[]
         valido=True
         for i in range(self.dialogo.ui.tableWidget.rowCount()):
-            fila=self.dialogo.ui.tableWidget.cellWidget(i, 1).text()
-            if len(fila)==0:
-                QMessageBox.warning(self.dialogo, "  ADVERTENCIA  ", "Verifique los valores")
-                valido=False
+            aux=[]
+            for j in range(1,self.dialogo.ui.tableWidget.columnCount()):
+                fila=self.dialogo.ui.tableWidget.cellWidget(i, j).text()
+                if len(fila)==0:
+                    QMessageBox.warning(self.dialogo, "  ADVERTENCIA  ", "Verifique los valores")
+                    valido=False
+                    break
+                if fila!="X":
+                    aux.append(int(fila))    
+            if not valido :
                 break
-            matriz.append(fila.split(","))
+            matriz.append(aux)
         if valido :
-            self.dialogo.close()    
+            self.dialogo.close()
             for i in range(self.dialogo.ui.tableWidget.rowCount()):
                 self.nodos.append(nodo(self.ventana.Get_Lienzo().posicion[i][0],self.ventana.Get_Lienzo().posicion[i][1],i+1))
             self.grafo=Grafo()
             self.grafo.Set_nodos(self.nodos)
             self.grafo.Set_listaAd(matriz)
             self.grafo.Crear_grafo()
-            self.ventana.Get_Lienzo().DibujarAyacente(self.grafo.Get_nodosD())    
-
-        
+            self.ventana.Get_Lienzo().DibujarAyacente(self.grafo.Get_nodosD(),self.grafo.Get_Arista())    
+               
     def Get_ventana(self):
         return self.ventana
 
