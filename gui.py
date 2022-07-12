@@ -223,8 +223,22 @@ class Modelo ():
         self.dialogo =Dialogo(self)
         self.VentanaG = GraficaArbol(self)
         self.nodos=[]
-        self.grafo=None    
+        self.grafo=None 
+        self.contarclicks=0
+        self.Arboldikjstra=None
+        self.ArbolPrim=None
     
+    def setArbolDikjstra(self,valor):
+        self.Arboldikjstra=valor
+    def setArbolPrim(self,valor):
+        self.ArbolPrim=valor
+    
+    def getArbolDikjstra(self):
+       return self.Arboldikjstra
+    
+    def getArbolPrim(self):
+       return self.ArbolPrim
+
     def BorrarPuntos(self):
        self.ventana.Get_Lienzo().Limpiar()
 
@@ -235,26 +249,33 @@ class Modelo ():
             self.VentanaG.show()
 
     def DibujarArbol(self):
-        if self.VentanaG.ui.comboBox.currentIndex()==1 :
-            visitados=[]
-            recorrido=[]
-            aux=0
-            ca_d=self.grafo.AlgDijkstra()
-            visitados.append(((ca_d[0])[0])[0])
-            ca_d.pop(0)
-            print(ca_d)
-            for i in ca_d:
-                for j in i[0]:
-                    if j in visitados:
-                        aux=j       
-                    else:
-                        visitados.append(j)
-                        recorrido.append((aux,j,i[1]))    
-            print(recorrido)
-            self.VentanaG.canvas.DibujarDi(recorrido,self.nodos)
-        elif self.VentanaG.ui.comboBox.currentIndex()==2: 
-            self.VentanaG.canvas.DibujarDi(self.grafo.AlgPrim(self.nodos[0].valor, [], [], []), self.nodos)
-            
+        if  self.contarclicks==0:
+            if self.VentanaG.ui.comboBox.currentIndex()==1 :
+                visitados=[]
+                recorrido=[]
+                aux=0
+                ca_d=self.grafo.AlgDijkstra()
+                visitados.append(((ca_d[0])[0])[0])
+                ca_d.pop(0)
+                print(ca_d)
+                for i in ca_d:
+                    for j in i[0]:
+                        if j in visitados:
+                            aux=j       
+                        else:
+                            visitados.append(j)
+                            recorrido.append((aux,j,i[1]))    
+                self.setArbolDikjstra(recorrido)
+                self.VentanaG.canvas.DibujarDi(recorrido,self.nodos)
+            elif self.VentanaG.ui.comboBox.currentIndex()==2:
+                self.setArbolPrim(self.grafo.AlgPrim(self.nodos[0].valor, [], [], [])) 
+                self.VentanaG.canvas.DibujarDi(self.getArbolPrim(), self.nodos)
+        else:
+            if self.VentanaG.ui.comboBox.currentIndex()==1 :
+                 self.VentanaG.canvas.DibujarDi(self.getArbolDikjstra(),self.nodos)
+            elif self.VentanaG.ui.comboBox.currentIndex()==2:
+                 self.VentanaG.canvas.DibujarDi(self.getArbolPrim(), self.nodos)
+        self.contarclicks+=1         
     
     def Lista(self):
         if len(self.ventana.Get_Lienzo().posicion)>0:
